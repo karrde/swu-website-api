@@ -20,7 +20,22 @@ def check_and_download(filename, art):
         f = urllib.request.urlopen(request_uri)
         with open(filename, "wb") as image_file:
             image_file.write(f.read())
-    
+
+def get_location(base, card, back = False):
+    file_loc = base
+    if card['expansion']['data']:
+        file_prefix = card['expansion']['data']['attributes']['code'] + "-"
+        if len(card['variantTypes']['data']) == 0:
+            file_loc = file_loc / card['expansion']['data']['attributes']['code']
+        else:
+            file_loc = file_loc / (card['expansion']['data']['attributes']['code'] + " - " + card['variantTypes']['data'][0]['attributes']['name'])
+    else:
+        file_prefix = "SWU-"
+    if back:
+        file_loc = file_loc / (file_prefix + "{:03d}".format(int(card['cardNumber'])) +"b.png")
+    else:
+        file_loc = file_loc / (file_prefix + "{:03d}".format(int(card['cardNumber'])) +".png")
+    return file_loc
 
 def main():
     card_table = swuapi.CardTable()
@@ -31,18 +46,10 @@ def main():
     for id_num,card in card_table.table.items():
         download = False
         print(f"Checking card ID {id_num}")
-        if card['expansion']['data']:
-            if len(card['variantTypes']['data']) == 0:
-                file_loc = card_file = base_location / card['expansion']['data']['attributes']['code'] / (card['expansion']['data']['attributes']['code'] + "-" + "{:03d}".format(int(card['cardNumber'])) +".png")
-            else:
-                file_loc = card_file = base_location / (card['expansion']['data']['attributes']['code'] + " - " + card['variantTypes']['data'][0]['attributes']['name']) / (card['expansion']['data']['attributes']['code'] + "-" + "{:03d}".format(int(card['cardNumber'])) +".png")
-        else:
-            file_loc = card_file = base_location / ("SWU-" + "{:03d}".format(int(card['cardNumber'])) +".png")
-            
-        check_and_download(file_loc, card['artFront'])
+           
+        check_and_download(get_location(base_location, card), card['artFront'])
         if card['artBack']['data']:
-            file_loc = card_file = base_location / card['expansion']['data']['attributes']['code'] / (card['expansion']['data']['attributes']['code'] + "-" + "{:03d}".format(int(card['cardNumber'])) +"b.png")
-            check_and_download(file_loc, card['artBack'])
+            check_and_download(get_location(base_location, card, True), card['artBack'])
             
 if __name__ == "__main__":
     main()

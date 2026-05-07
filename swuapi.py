@@ -3,29 +3,38 @@
 import json
 import urllib.request
 import urllib.parse
+import time
 from datetime import datetime
 import logging, sys
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 import csv
-        
+    
+logger = logging.getLogger(__name__)    
 swu_epoch = '2023-05-07T01:01:01.000Z'
 
 def fixdate(datestring):
     return datetime.strptime(datestring, "%Y-%m-%dT%H:%M:%S.%f%z")
 
-def request_card_page(pageno = 0, pagesize = 25, additional_queries = ''):
+def request_card_page(pageno = 0, pagesize = 25, additional_queries = '', try_count = 0):
     ## Filter variants filters[variantOf][id][$null]=true
     ## page size pagination[pageSize]=250
     ## page number pagination[page]=2
     primary_uri = 'https://admin.starwarsunlimited.com/api/cards'
-    
     request_uri = primary_uri + '?pagination[pageSize]='+str(pagesize)
     
     req_page = pageno or 1
     request_uri = request_uri+'&pagination[page]='+str(req_page)+additional_queries
     logging.debug(f"Requesting: {request_uri}")
-    f = urllib.request.urlopen(request_uri)
-    return json.loads(f.read())
+    try:
+        f = urllib.request.urlopen(request_uri)
+    except urllib.error.HTTPError:
+        if try_count > 5:
+            logging.error("Failed HTTPError x5")
+            exit(1)
+        time.sleep(20)
+        logging.info("Caught HTTPError, sleeping for 20\n")
+        return request_card_page(pageno, pagesize, additional_queries, try_count+1)
+    else:
+        return json.loads(f.read())
     
 def request_unique_cards():
     return request_card_page(additional_queries = '&filters[variantOf][id][$null]=true')
@@ -143,7 +152,8 @@ class CardTable:
         writer.writerows(ssrows)
         
 def main():
-    pass
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
 
 if __name__ == "__main__":
     main()
